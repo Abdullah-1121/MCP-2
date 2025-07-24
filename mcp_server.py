@@ -1,6 +1,6 @@
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
-
+from mcp.server.fastmcp.prompts import base
 mcp = FastMCP("DocumentMCP", log_level="ERROR", stateless_http=True)
 
 docs = {
@@ -56,8 +56,38 @@ def list_docs() -> list[str]:
 )
 def get_doc(doc_id: str) -> str:
     return docs[doc_id]
-# TODO: Write a prompt to rewrite a doc in markdown format
-# TODO: Write a prompt to summarize a doc
+@mcp.prompt(
+    name="format",
+    description="Rewrites the contents of the document in Markdown format.",
+)
+def format_document(
+    doc_id: str = Field(description="Id of the document to format"),
+) -> list[base.Message]:
+    prompt = f"""
+    Your goal is to reformat a document to be written with markdown syntax.
+
+    The id of the document you need to reformat is:
+    <document_id>
+    {doc_id}
+    </document_id>
+
+    Add in headers, bullet points, tables, etc as necessary. Feel free to add in extra text, but don't change the meaning of the report.
+    Use the 'edit_document' tool to edit the document. After the document has been edited, respond with the final version of the doc. Don't explain your changes.
+    """
+
+    return [base.UserMessage(prompt)]
+@mcp.prompt(
+    name="summarize",
+    description="Summarizes the contents of the document."
+)
+def summarize_document(doc_id: str = Field(description="Id of the document to summarize")) -> list:
+    from mcp.types import PromptMessage, TextContent
+    prompt_text = f"""
+    Your goal is to summarize the contents of the document.
+    Document ID: {doc_id}
+    Include a concise summary of the document's main points.
+    """
+    return [PromptMessage(role="user", content=TextContent(type="text", text=prompt_text))]
 
 
 mcp_app = mcp.streamable_http_app()
