@@ -39,8 +39,9 @@ class MCPClient:
     async def call_tool(
         self, tool_name: str, tool_input: dict
     ) -> types.CallToolResult | None:
-        # TODO: Call a particular tool and return the result
-        return None
+        # Core function: Execute a specific tool on the MCP server using its name and input parameters.
+        # This call is part of the MCP lifecycle's Operation phase.
+        return await self.session().call_tool(tool_name, tool_input)
 
     async def list_prompts(self) -> list[types.Prompt]:
         # TODO: Return a list of prompts defined by the MCP server
