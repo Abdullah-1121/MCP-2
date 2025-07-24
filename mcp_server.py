@@ -43,8 +43,19 @@ def edit_document(
     docs[doc_id] = docs[doc_id].replace(old_str, new_str)
     return f"Successfully updated document {doc_id}"
 
-# TODO: Write a resource to return all doc id's
-# TODO: Write a resource to return the contents of a particular doc
+@mcp.resource(
+    "docs://documents",
+    mime_type="application/json"
+)
+def list_docs() -> list[str]:
+    return list(docs.keys())
+
+@mcp.resource(
+    "docs://{doc_id}",
+    mime_type="text/plain"
+)
+def get_doc(doc_id: str) -> str:
+    return docs[doc_id]
 # TODO: Write a prompt to rewrite a doc in markdown format
 # TODO: Write a prompt to summarize a doc
 

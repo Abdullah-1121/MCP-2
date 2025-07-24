@@ -4,7 +4,8 @@ from typing import Optional, Any
 from contextlib import AsyncExitStack
 from mcp import ClientSession, types
 from mcp.client.streamable_http import streamablehttp_client
-
+import json
+from pydantic import AnyUrl
 
 class MCPClient:
     def __init__(
@@ -52,8 +53,14 @@ class MCPClient:
         return []
 
     async def read_resource(self, uri: str) -> Any:
-        # TODO: Read a resource, parse the contents and return it
-        return []
+         result = await self.session().read_resource(AnyUrl(uri))
+         resource = result.contents[0]
+    
+         if isinstance(resource, types.TextResourceContents):
+           if resource.mimeType == "application/json":
+             return json.loads(resource.text)
+    
+         return resource.text
 
     async def cleanup(self):
         await self._exit_stack.aclose()
