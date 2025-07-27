@@ -4,6 +4,8 @@ from typing import Optional, Any
 from contextlib import AsyncExitStack
 from mcp import ClientSession, types
 from mcp.client.streamable_http import streamablehttp_client
+from mcp.shared.context import RequestContext
+from mcp.types import CreateMessageRequestParams, CreateMessageResult, ErrorData, TextContent
 import json
 from pydantic import AnyUrl
 
@@ -17,6 +19,7 @@ class MCPClient:
         self._exit_stack: AsyncExitStack = AsyncExitStack()
 
     async def connect(self):
+        
         streamable_transport = await self._exit_stack.enter_async_context(
             streamablehttp_client(self._server_url)
         )
@@ -61,6 +64,32 @@ class MCPClient:
              return json.loads(resource.text)
     
          return resource.text
+    
+    # Mock Sampling CallBack
+    async def mock_sampler(context: RequestContext["ClientSession", Any], params: CreateMessageRequestParams) -> CreateMessageResult | ErrorData:
+     """A mock LLM handler that gets called by the ClientSession when the server sends a 'sampling/create' request."""
+
+     print("<- Client: Received 'sampling/create' request from server.")
+
+     print(f"<- Client Parameters '{params}'.")
+     print(f"<- Client Context '{context}'.")
+     print(f"<- Client Message '{params.messages}'.")
+
+        # Mock a response from an LLM
+     mock_llm_response = (
+        f"In a world of shimmering code, a brave little function set out to find the legendary Golden Bug. "
+        f"It traversed treacherous loops and navigated complex conditionals. "
+        f"Finally, it found not a bug, but a feature, more valuable than any treasure."
+       )
+
+     print("-> Client: Sending mock story back to the server.")
+
+    # Respond with a dictionary that matches the expected structure
+     return CreateMessageResult(
+        role="assistant",
+        content=TextContent(text=mock_llm_response, type="text"),
+        model="openai/gpt-4o-mini",
+      )
 
     async def cleanup(self):
         await self._exit_stack.aclose()
@@ -78,6 +107,7 @@ class MCPClient:
 async def main():
     async with MCPClient(
         server_url="http://localhost:8000/mcp/",
+        
     ) as _client:
         pass
 
