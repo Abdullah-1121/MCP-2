@@ -2,6 +2,8 @@ from mcp.server.fastmcp import FastMCP , Context
 from pydantic import Field
 from mcp.server.fastmcp.prompts import base
 from mcp.types import SamplingMessage , TextContent
+from mcp import types
+import asyncio
 mcp = FastMCP("DocumentMCP", log_level="ERROR", stateless_http=True)
 
 docs = {
@@ -78,6 +80,30 @@ async def create_story(ctx: Context, topic: str) -> str:
     except Exception as e:
         print(f"-> Server: An error occurred during sampling: {e}")
         return f"Error asking client to generate story: {e}"
+@mcp.tool()
+async def process_item(
+    ctx: Context,
+    item_id: str,
+    should_fail: bool = False,
+) -> list[types.TextContent]:
+    """
+    A simple tool that demonstrates logging by emitting messages
+    at different severity levels.
+    """
+    await ctx.debug(f"Starting processing for item: {item_id}")
+    await asyncio.sleep(0.2)
+    await ctx.info("Configuration loaded successfully.")
+    await asyncio.sleep(0.2)
+
+    if should_fail:
+        await ctx.warning(f"Item '{item_id}' has a validation issue. Attempting to proceed...")
+        await asyncio.sleep(0.2)
+        await ctx.error(f"Failed to process item '{item_id}'. Critical failure.")
+        return [types.TextContent(type="text", text=f"Failed to process {item_id}.")]
+
+    await ctx.info(f"Item '{item_id}' processed successfully.")
+
+    return [types.TextContent(type="text", text=f"Successfully processed {item_id}.")]
 
 @mcp.resource(
     "docs://documents",
