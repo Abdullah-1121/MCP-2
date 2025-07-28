@@ -1,12 +1,13 @@
 from pathlib import Path
+from typing import List
 from urllib.parse import urlparse
 from mcp.server.fastmcp import FastMCP , Context
-from pydantic import Field
+from pydantic import BaseModel, Field
 from mcp.server.fastmcp.prompts import base
 from mcp.types import SamplingMessage , TextContent
 from mcp import types
 import asyncio
-mcp = FastMCP("DocumentMCP", log_level="ERROR", stateless_http=True)
+mcp = FastMCP("DocumentMCP", log_level="ERROR", stateless_http=False) # False for the Elicitation Demo
 
 docs = {
     "deposition.md": "This deposition covers the testimony of Angela Smith, P.E.",
@@ -107,7 +108,6 @@ async def process_item(
 
     return [types.TextContent(type="text", text=f"Successfully processed {item_id}.")]
 @mcp.tool()
-@mcp.tool()
 async def download_file(filename: str, size_mb: int, ctx: Context) -> str:
     """
     Simulate downloading a file with progress tracking.
@@ -149,20 +149,26 @@ async def process_data(records: int, ctx: Context) -> str:
         records: Number of records to process
         ctx: MCP context for progress reporting
     """
+    print('Downloading files...')
     await ctx.info(f"Starting to process {records} records")
     
     for i in range(records + 1):
         # Report progress with descriptive messages
         if i == 0:
             message = "Initializing data processor..."
+            
         elif i < records // 4:
             message = "Loading and validating records..."
+            
         elif i < records // 2:
             message = "Applying transformations..."
+            
         elif i < records * 3 // 4:
             message = "Running calculations..."
+            
         else:
             message = "Finalizing results..."
+            
             
         await ctx.report_progress(
             progress=i,
@@ -171,7 +177,7 @@ async def process_data(records: int, ctx: Context) -> str:
         )
         
         # Simulate processing time
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(2)
     
     await ctx.info(f"Processing completed: {records} records")
     return f"Successfully processed {records} records"
@@ -202,6 +208,54 @@ async def analyze_project(ctx: Context) -> TextContent:
     print(f"-> Server: Analysis complete: {analysis}")
 
     return TextContent(text=analysis, type="text")
+class OrderPreferences(BaseModel):
+    """Schema for collecting user's pizza order preferences."""
+    want_toppings: bool = Field(
+        description="Would you like to add extra toppings?"
+    )
+    toppings: str = Field(
+        default="mushrooms",
+        description="What toppings would you like? (comma-separated)"
+    )
+
+
+@mcp.tool()
+async def order_pizza(ctx: Context, size: str) -> str:
+    """
+    Orders a pizza with optional toppings through user elicitation.
+
+    Args:
+        ctx: The MCP Context, used to communicate with the client
+        size: Size of the pizza (small, medium, large)
+
+    Returns:
+        Order confirmation message
+    """
+    print(f"-> Server: Tool 'order_pizza' called with size: '{size}'")
+
+    try:
+        # Ask user if they want toppings and what kind
+        print("-> Server: Sending elicitation request to client...")
+        result = await ctx.elicit(
+            message=f"Ordering a {size} pizza. Would you like to customize it? Max 3 toppings.",
+            schema=OrderPreferences
+        )
+
+        # Handle user's response
+        if result.action == "accept" and result.data:
+            if result.data.want_toppings:
+                
+                return f"Order confirmed: {size} pizza with {result.data.toppings}"
+                
+            return f"Order confirmed: {size} plain pizza"
+        elif result.action == "decline":
+            return "Order declined: No pizza ordered"
+        else:  # cancel
+            return "Order cancelled"
+
+    except Exception as e:
+        print(f"-> Server: An error occurred during elicitation: {e}")
+        return f"Error processing pizza order: {e}"
 @mcp.resource(
     "docs://documents",
     mime_type="application/json"
