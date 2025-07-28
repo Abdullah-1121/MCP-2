@@ -1,3 +1,5 @@
+from pathlib import Path
+from urllib.parse import urlparse
 from mcp.server.fastmcp import FastMCP , Context
 from pydantic import Field
 from mcp.server.fastmcp.prompts import base
@@ -173,6 +175,33 @@ async def process_data(records: int, ctx: Context) -> str:
     
     await ctx.info(f"Processing completed: {records} records")
     return f"Successfully processed {records} records"
+@mcp.tool()
+async def analyze_project(ctx: Context) -> TextContent:
+    """
+    Analyzes project structure using roots provided by the client.
+
+    Returns:
+        A summary of the project structure
+    """
+    print("-> Server: Requesting project roots from client...")
+    roots = await ctx.session.list_roots()
+
+    if not roots or not roots.roots:
+        return TextContent(text="No project roots found", type="text")
+
+    root = roots.roots[0]  # Get first root for simplicity
+    print(f"<- Server: Received root: {root.uri}")
+
+    # Parse the file URI to get the actual path
+    path = Path(urlparse(root.uri).path)
+
+    # Do a simple analysis
+    py_files = list(path.glob("**/*.py"))
+
+    analysis = f"Found {len(py_files)} Python files in project at {path}"
+    print(f"-> Server: Analysis complete: {analysis}")
+
+    return TextContent(text=analysis, type="text")
 @mcp.resource(
     "docs://documents",
     mime_type="application/json"
